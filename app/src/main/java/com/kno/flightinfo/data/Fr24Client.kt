@@ -34,7 +34,7 @@ object Fr24Client {
         var tzSet: Boolean = false
     }
 
-    suspend fun fetch(airport: String, arrivals: Boolean, pages: Int = 2): Board =
+    suspend fun fetch(airport: String, arrivals: Boolean, pages: Int = 3): Board =
         withContext(Dispatchers.IO) {
             val code = airport.trim().lowercase()
             val out = mutableListOf<Flight>()
@@ -90,6 +90,20 @@ object Fr24Client {
     private fun JSONObject?.l(k: String): Long =
         if (this == null || isNull(k)) 0L else optLong(k, 0L)
 
+    /**
+     * Bandara di Indonesia? Dicek lewat kode ICAO (awalan WI, WA, WR dipakai khusus Indonesia),
+     * lalu cadangan lewat kode/nama negara.
+     */
+    private fun isIndonesia(ap: JSONObject?): Boolean {
+        if (ap == null) return false
+        val icao = ap.o("code").s("icao").uppercase()
+        if (icao.length == 4 && (icao.startsWith("WI") || icao.startsWith("WA") || icao.startsWith("WR"))) return true
+        val c = ap.o("position").o("country")
+        val code = c.s("code").uppercase()
+        val codeLong = c.s("codeLong").uppercase()
+        return code == "ID" || code == "IDN" || codeLong == "IDN" || c.s("name").equals("Indonesia", ignoreCase = true)
+    }
+
     /** @return jumlah baris data pada halaman ini. */
     private fun parsePage(root: JSONObject, arrivals: Boolean, out: MutableList<Flight>, st: State): Int {
         val plugin = root.o("result").o("response").o("airport").o("pluginData")
@@ -114,15 +128,20 @@ object Fr24Client {
                 }
             }
 
-            val hc = home.o("position").o("country")
-            val oc = other.o("position").o("country")
-            val hCode = hc.s("code")
-            val oCode = oc.s("code")
-            val intl = when {
-                hCode.isNotBlank() && oCode.isNotBlank() -> !hCode.equals(oCode, ignoreCase = true)
-                hc.s("name").isNotBlank() && oc.s("name").isNotBlank() ->
-                    !hc.s("name").equals(oc.s("name"), ignoreCase = true)
-                else -> true
+            // Domestik = asal/tujuan lain adalah bandara di Indonesia. Selain itu = internasional.
+            val intl = if (isIndonesia(home)) {
+                !isIndonesia(other)
+            } else {
+                val hc = home.o("position").o("country")
+                val oc = other.o("position").o("country")
+                val hCode = hc.s("code")
+                val oCode = oc.s("code")
+                when {
+                    hCode.isNotBlank() && oCode.isNotBlank() -> !hCode.equals(oCode, ignoreCase = true)
+                    hc.s("name").isNotBlank() && oc.s("name").isNotBlank() ->
+                        !hc.s("name").equals(oc.s("name"), ignoreCase = true)
+                    else -> true
+                }
             }
 
             val key = if (arrivals) "arrival" else "departure"
