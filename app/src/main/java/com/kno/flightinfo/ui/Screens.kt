@@ -222,7 +222,7 @@ private fun SettingsScreen(s: AppSettings, onSave: (AppSettings) -> Unit) {
     ) {
         Title("Bandara")
         AirportPicker(s, onSave)
-        SwitchRow("Hanya flight internasional", s.internationalOnly) { onSave(s.copy(internationalOnly = it)) }
+        SwitchRow("Sembunyikan flight domestik (dari/ke bandara Indonesia)", s.internationalOnly) { onSave(s.copy(internationalOnly = it)) }
 
         HorizontalDivider()
         Title("Notifikasi kedatangan (landing)")
