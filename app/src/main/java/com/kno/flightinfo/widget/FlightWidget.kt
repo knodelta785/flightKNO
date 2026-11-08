@@ -83,7 +83,7 @@ private fun WidgetContent(s: AppSettings, arr: Board?, dep: Board?) {
             .background(BG)
             .cornerRadius(20.dp)
             .padding(12.dp)
-            .clickable(actionStartActivity<MainActivity>()),
+            .clickable(actionStartActivity(android.content.Intent(androidx.glance.LocalContext.current, MainActivity::class.java))),
     ) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
